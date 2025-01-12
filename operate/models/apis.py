@@ -1,36 +1,36 @@
+import base64
+import io
+import json
 import os
 import time
-import json
-import base64
 import traceback
-import io
+
 import easyocr
 import ollama
-
+import pkg_resources
 from PIL import Image
 from ultralytics import YOLO
 
 from operate.config import Config
 from operate.exceptions import ModelNotRecognizedException
-from operate.utils.screenshot import (
-    capture_screen_with_cursor,
-)
 from operate.models.prompts import (
+    get_system_prompt,
     get_user_first_message_prompt,
     get_user_prompt,
-    get_system_prompt,
 )
-from operate.utils.ocr import get_text_element, get_text_coordinates
-
-
 from operate.utils.label import (
     add_labels,
     get_click_position_in_percent,
     get_label_coordinates,
 )
-from operate.utils.style import ANSI_GREEN, ANSI_RED, ANSI_RESET, ANSI_BRIGHT_MAGENTA
-import pkg_resources
-
+from operate.utils.ocr import get_text_coordinates, get_text_element
+from operate.utils.screenshot import capture_screen_with_cursor
+from operate.utils.style import (
+    ANSI_BRIGHT_MAGENTA,
+    ANSI_GREEN,
+    ANSI_RED,
+    ANSI_RESET,
+)
 
 # Load configuration
 config = Config()
@@ -98,7 +98,9 @@ def call_gpt_4o(messages):
                 {"type": "text", "text": user_prompt},
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"},
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{img_base64}"
+                    },
                 },
             ],
         }
@@ -167,7 +169,9 @@ def call_gemini_pro_vision(messages, objective):
         if config.verbose:
             print("[call_gemini_pro_vision] model", model)
 
-        response = model.generate_content([prompt, Image.open(screenshot_filename)])
+        response = model.generate_content(
+            [prompt, Image.open(screenshot_filename)]
+        )
 
         content = response.text[1:]
         if config.verbose:
@@ -225,14 +229,16 @@ async def call_gpt_4o_with_ocr(messages, objective, model):
                 {"type": "text", "text": user_prompt},
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"},
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{img_base64}"
+                    },
                 },
             ],
         }
         messages.append(vision_message)
 
         response = client.chat.completions.create(
-            model="o1",
+            model="gpt-4o",
             messages=messages,
         )
 
@@ -255,36 +261,37 @@ async def call_gpt_4o_with_ocr(messages, objective, model):
                         "[call_gpt_4o_with_ocr][click] text_to_click",
                         text_to_click,
                     )
-                # Initialize EasyOCR Reader
-                reader = easyocr.Reader(["en"])
+                if text_to_click:
+                    # Initialize EasyOCR Reader
+                    reader = easyocr.Reader(["en"])
 
-                # Read the screenshot
-                result = reader.readtext(screenshot_filename)
+                    # Read the screenshot
+                    result = reader.readtext(screenshot_filename)
 
-                text_element_index = get_text_element(
-                    result, text_to_click, screenshot_filename
-                )
-                coordinates = get_text_coordinates(
-                    result, text_element_index, screenshot_filename
-                )
-
-                # add `coordinates`` to `content`
-                operation["x"] = coordinates["x"]
-                operation["y"] = coordinates["y"]
-
-                if config.verbose:
-                    print(
-                        "[call_gpt_4o_with_ocr][click] text_element_index",
-                        text_element_index,
+                    text_element_index = get_text_element(
+                        result, text_to_click, screenshot_filename
                     )
-                    print(
-                        "[call_gpt_4o_with_ocr][click] coordinates",
-                        coordinates,
+                    coordinates = get_text_coordinates(
+                        result, text_element_index, screenshot_filename
                     )
-                    print(
-                        "[call_gpt_4o_with_ocr][click] final operation",
-                        operation,
-                    )
+
+                    # add `coordinates`` to `content`
+                    operation["x"] = coordinates["x"]
+                    operation["y"] = coordinates["y"]
+
+                    if config.verbose:
+                        print(
+                            "[call_gpt_4o_with_ocr][click] text_element_index",
+                            text_element_index,
+                        )
+                        print(
+                            "[call_gpt_4o_with_ocr][click] coordinates",
+                            coordinates,
+                        )
+                        print(
+                            "[call_gpt_4o_with_ocr][click] final operation",
+                            operation,
+                        )
                 processed_content.append(operation)
 
             else:
@@ -338,7 +345,9 @@ async def call_o1_with_ocr(messages, objective, model):
                 {"type": "text", "text": user_prompt},
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"},
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{img_base64}"
+                    },
                 },
             ],
         }
@@ -426,7 +435,9 @@ async def call_gpt_4o_labeled(messages, objective, model):
         client = config.initialize_openai()
 
         confirm_system_prompt(messages, objective, model)
-        file_path = pkg_resources.resource_filename("operate.models.weights", "best.pt")
+        file_path = pkg_resources.resource_filename(
+            "operate.models.weights", "best.pt"
+        )
         yolo_model = YOLO(file_path)  # Load your trained model
         screenshots_dir = "screenshots"
         if not os.path.exists(screenshots_dir):
@@ -439,7 +450,9 @@ async def call_gpt_4o_labeled(messages, objective, model):
         with open(screenshot_filename, "rb") as img_file:
             img_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
-        img_base64_labeled, label_coordinates = add_labels(img_base64, yolo_model)
+        img_base64_labeled, label_coordinates = add_labels(
+            img_base64, yolo_model
+        )
 
         if len(messages) == 1:
             user_prompt = get_user_first_message_prompt()
@@ -512,7 +525,9 @@ async def call_gpt_4o_labeled(messages, objective, model):
                 image = Image.open(
                     io.BytesIO(base64.b64decode(img_base64))
                 )  # Load the image to get its size
-                image_size = image.size  # Get the size of the image (width, height)
+                image_size = (
+                    image.size
+                )  # Get the size of the image (width, height)
                 click_position_percent = get_click_position_in_percent(
                     coordinates, image_size
                 )
@@ -568,6 +583,13 @@ def call_ollama_llava(messages):
         print("[call_ollama_llava]")
     time.sleep(1)
     try:
+        # it looks like the ollama host is set from the environment variable.
+        # ignore belo
+        # Get Ollama host from config, default to localhost if not specified
+        ollama_host = getattr(config, "ollama_host", "http://localhost:11434")
+        ## Configure Ollama client with host
+        # ollama.set_host(ollama_host)
+
         screenshots_dir = "screenshots"
         if not os.path.exists(screenshots_dir):
             os.makedirs(screenshots_dir)
@@ -622,7 +644,9 @@ def call_ollama_llava(messages):
 
     except ollama.ResponseError as e:
         print(
-            f"{ANSI_GREEN}[Self-Operating Computer]{ANSI_RED}[Operate] Couldn't connect to Ollama. With Ollama installed, run `ollama pull llava` then `ollama serve`{ANSI_RESET}",
+            f"{ANSI_GREEN}[Self-Operating Computer]{ANSI_RED}[Operate] Couldn't connect to Ollama at {ollama_host}. "
+            f"With Ollama installed, run `ollama pull llava` then `ollama serve` "
+            f"or configure OLLAMA_HOST environment variable for remote server{ANSI_RESET}",
             e,
         )
 
@@ -667,13 +691,17 @@ async def call_claude_3_with_ocr(messages, objective, model):
             # Calculate the new dimensions while maintaining the aspect ratio
             original_width, original_height = img.size
             aspect_ratio = original_width / original_height
-            new_width = 2560  # Adjust this value to achieve the desired file size
+            new_width = (
+                2560  # Adjust this value to achieve the desired file size
+            )
             new_height = int(new_width / aspect_ratio)
             if config.verbose:
                 print("[call_claude_3_with_ocr] resizing claude")
 
             # Resize the image
-            img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            img_resized = img.resize(
+                (new_width, new_height), Image.Resampling.LANCZOS
+            )
 
             # Save the resized and converted image to a BytesIO object for JPEG format
             img_buffer = io.BytesIO()
@@ -826,7 +854,9 @@ async def call_claude_3_with_ocr(messages, objective, model):
                         else:
                             updated_content.append(item)
 
-                gpt4_messages.append({"role": "user", "content": updated_content})
+                gpt4_messages.append(
+                    {"role": "user", "content": updated_content}
+                )
             elif message["role"] == "assistant":
                 gpt4_messages.append(
                     {"role": "assistant", "content": message["content"]}
@@ -842,7 +872,9 @@ def get_last_assistant_message(messages):
     """
     for index in reversed(range(len(messages))):
         if messages[index]["role"] == "assistant":
-            if index == 0:  # Check if the assistant message is the first in the array
+            if (
+                index == 0
+            ):  # Check if the assistant message is the first in the array
                 return None
             else:
                 return messages[index]

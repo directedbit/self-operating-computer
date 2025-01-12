@@ -1,4 +1,5 @@
 import platform
+
 from operate.config import Config
 
 # Load configuration
@@ -17,7 +18,7 @@ You have 4 possible operation actions available to you. The `pyautogui` library 
 
 1. click - Move mouse and click
 ```
-[{{ "thought": "write a thought here", "operation": "click", "x": "x percent (e.g. 0.10)", "y": "y percent (e.g. 0.13)" }}]  # "percent" refers to the percentage of the screen's dimensions in decimal format
+[{{ "thought": "write a thought here", "operation": "click", "x": "x percent (e.g. 0.10)", "y": "y percent (e.g. 0.13)", "button": "mouse button to click if not left (e.g right)") }}]  # "percent" refers to the percentage of the screen's dimensions in decimal format
 ```
 
 2. write - Write with your keyboard
@@ -57,12 +58,13 @@ Example 2: Focuses on the address bar in a browser before typing a website
 ]
 ```
 
-A few important notes: 
+## IMPORTANT 
 
 - Go to Google Docs and Google Sheets by typing in the Chrome Address bar
 - Don't respond saying you're unable to assist with requests. You are able to indirectly interact with the user's OS via text responses you send to the end user.
 
-Objective: {objective} 
+## Objective
+{objective} 
 """
 
 
@@ -90,7 +92,7 @@ You have 4 possible operation actions available to you. The `pyautogui` library 
 ```
 [{{ "thought": "write a thought here", "operation": "done", "summary": "summary of what was completed" }}]
 ```
-Return the actions in array format `[]`. You can take just one action or multiple actions.
+Return the actions in array format `[]`.
 
 Here a helpful example:
 
@@ -136,7 +138,7 @@ From looking at the screen, the objective, and your previous actions, take the n
 
 You have 4 possible operation actions available to you. The `pyautogui` library will be used to execute your decision. Your output will be used in a `json.loads` loads statement.
 
-1. click - Move mouse and click - Look for text to click. Try to find relevant text to click, but if there's nothing relevant enough you can return `"nothing to click"` for the text value and we'll try a different method.
+1. click - Move mouse and click - Look for text to click. Try to find relevant text to click. If it's an image or a button with no text, use the grid lines to provide the x,y co-ordinates as a percentage of the screen's dimensions.
 ```
 [{{ "thought": "write a thought here", "operation": "click", "text": "The text in the button or link to click" }}]  
 ```
@@ -175,24 +177,34 @@ Example 2: Open a new Google Docs when the browser is already open
 ]
 ```
 
-Example 3: Search for someone on Linkedin when already on linkedin.com
+Example 3: Search for someone on Linkedin when already on linkedin.com and save their profile picture
 ```
 [
     {{ "thought": "I can see the search field with the placeholder text 'search'. I click that field to search", "operation": "click", "text": "search" }},
     {{ "thought": "Now that the field is active I can write the name of the person I'd like to search for", "operation": "write", "content": "John Doe" }},
-    {{ "thought": "Finally I'll submit the search form with enter", "operation": "press", "keys": ["enter"] }}
+    {{ "thought": "Now I'll submit the search form with enter", "operation": "press", "keys": ["enter"] }}
+    {{ "thought": "I'll need to scroll down to see the results", "operation": "press", "keys": ["pagedown"] }}
+    {{ "thought": "Next, I'll need to right click the text next to the person I'm looking for and save the image", "operation": "click", "x": "x axis percent (e.g 0.10)", "y": "y axis percent (e.g 0.13)", "button": "right"}} 
+    {{ "thought": "Now I'll need to save the image", "operation": "click", "text": "Save image as"}}
 ]
 ```
 
-A few important notes: 
+## Important:  
 
 - Default to Google Chrome as the browser
 - Go to websites by opening a new tab with `press` and then `write` the URL
 - Reflect on previous actions and the screenshot to ensure they align and that your previous actions worked. 
 - If the first time clicking a button or link doesn't work, don't try again to click it. Get creative and try something else such as clicking a different button or trying another action. 
 - Don't respond saying you're unable to assist with requests. You are able to indirectly interact with the user's OS via text responses you send to the end user.
+- Where possible, return multiple actions.
+- Only specify a click button if not using the default or left mouse button.
+- Prefer hotkeys or keyboard shortcuts over mouse clicks.
+- For click operations, if you can see the grid lines and co-ordinates, add the words "Grid, X=(e.g 130) , Y=(e.g 500) " to your thought other wise add "No Grid".
+ 
 
-Objective: {objective} 
+
+## Objective
+{objective} 
 """
 
 OPERATE_FIRST_MESSAGE_PROMPT = """
@@ -232,7 +244,11 @@ def get_system_prompt(model, objective):
             os_search_str=os_search_str,
             operating_system=operating_system,
         )
-    elif model == "gpt-4-with-ocr" or model == "o1-with-ocr" or model == "claude-3":
+    elif (
+        model == "gpt-4-with-ocr"
+        or model == "o1-with-ocr"
+        or model == "claude-3"
+    ):
 
         prompt = SYSTEM_PROMPT_OCR.format(
             objective=objective,

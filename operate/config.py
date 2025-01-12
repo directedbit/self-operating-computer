@@ -1,10 +1,11 @@
 import os
 import sys
+
+import anthropic
+import google.generativeai as genai
 from dotenv import load_dotenv
 from openai import OpenAI
-import anthropic
 from prompt_toolkit.shortcuts import input_dialog
-import google.generativeai as genai
 
 
 class Config:
@@ -28,15 +29,11 @@ class Config:
     def __init__(self):
         load_dotenv()
         self.verbose = False
-        self.openai_api_key = (
-            None  # instance variables are backups in case saving to a `.env` fails
-        )
-        self.google_api_key = (
-            None  # instance variables are backups in case saving to a `.env` fails
-        )
-        self.anthropic_api_key = (
-            None  # instance variables are backups in case saving to a `.env` fails
-        )
+        self.openai_api_key = None  # instance variables are backups in case saving to a `.env` fails
+        self.google_api_key = None  # instance variables are backups in case saving to a `.env` fails
+        self.anthropic_api_key = None  # instance variables are backups in case saving to a `.env` fails
+        self.ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        self.display_id = os.getenv("DISPLAY_ID", "1")
 
     def initialize_openai(self):
         if self.verbose:
@@ -115,7 +112,8 @@ class Config:
 
     def prompt_and_save_api_key(self, key_name, key_description):
         key_value = input_dialog(
-            title="API Key Required", text=f"Please enter your {key_description}:"
+            title="API Key Required",
+            text=f"Please enter your {key_description}:",
         ).run()
 
         if key_value is None:  # User pressed cancel or closed the dialog

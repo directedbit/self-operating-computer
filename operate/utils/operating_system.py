@@ -1,7 +1,8 @@
-import pyautogui
+import math
 import platform
 import time
-import math
+
+import pyautogui
 
 from operate.utils.misc import convert_percent_to_decimal
 
@@ -29,9 +30,13 @@ class OperatingSystem:
         try:
             x = convert_percent_to_decimal(click_detail.get("x"))
             y = convert_percent_to_decimal(click_detail.get("y"))
-
+            button = click_detail.get("button")
+            if button == "right" or button == "secondary":
+                button = "right"
+            else:
+                button = "left"
             if click_detail and isinstance(x, float) and isinstance(y, float):
-                self.click_at_percentage(x, y)
+                self.click_at_percentage(x, y, button=button)
 
         except Exception as e:
             print("[OperatingSystem][mouse] error:", e)
@@ -43,6 +48,7 @@ class OperatingSystem:
         duration=0.2,
         circle_radius=50,
         circle_duration=0.5,
+        button="left",
     ):
         try:
             screen_width, screen_height = pyautogui.size()
@@ -53,11 +59,13 @@ class OperatingSystem:
 
             start_time = time.time()
             while time.time() - start_time < circle_duration:
-                angle = ((time.time() - start_time) / circle_duration) * 2 * math.pi
+                angle = (
+                    ((time.time() - start_time) / circle_duration) * 2 * math.pi
+                )
                 x = x_pixel + math.cos(angle) * circle_radius
                 y = y_pixel + math.sin(angle) * circle_radius
                 pyautogui.moveTo(x, y, duration=0.1)
 
-            pyautogui.click(x_pixel, y_pixel)
+            pyautogui.click(x_pixel, y_pixel, button=button)
         except Exception as e:
             print("[OperatingSystem][click_at_percentage] error:", e)
